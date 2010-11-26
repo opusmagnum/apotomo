@@ -6,7 +6,6 @@ require 'apotomo/tree_node'
 require 'apotomo/event'
 require 'apotomo/event_methods'
 require 'apotomo/transition'
-require 'apotomo/caching'
 require 'apotomo/widget_shortcuts'
 require 'apotomo/rails/view_helper'
 
@@ -31,9 +30,8 @@ module Apotomo
     
     attr_accessor :opts
     attr_writer   :visible
-    
+
     attr_writer   :controller
-    attr_accessor :version
     
     include TreeNode
     
@@ -41,7 +39,6 @@ module Apotomo
     include EventMethods
     
     include Transition
-    include Caching
     include WidgetShortcuts
     
     helper Apotomo::Rails::ViewHelper
@@ -66,8 +63,6 @@ module Apotomo
       @start_state  = start_state
 
       @visible      = true
-      @version      = 0 ### DISCUSS: neeed in stateLESS?
-      
       @cell         = self  ### DISCUSS: needed?
       
       @params       = parent_controller.params.dup.merge(opts)
