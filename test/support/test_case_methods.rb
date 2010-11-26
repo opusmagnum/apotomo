@@ -54,7 +54,7 @@ module Apotomo
       
       session = Marshal.load(Marshal.dump(session))
       
-      Apotomo::StatefulWidget.thaw_for(@controller, session, )
+      Apotomo::StatefulWidget.thaw_for(@controller, session, 'root')
     end
     
     def hibernate(widget, session = {})
