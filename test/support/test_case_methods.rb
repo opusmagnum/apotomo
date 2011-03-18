@@ -1,21 +1,21 @@
 module Apotomo
   module TestCaseMethods
     # Provides a ready-to-use mouse widget instance.
-    def mouse_mock(id='mouse', start_state=:eating, opts={}, &block)
-      mouse = MouseCell.new(parent_controller, id, start_state, opts)
+    def mouse_mock(id='mouse', opts={}, &block)
+      mouse = MouseWidget.new(parent_controller, id, opts)
       mouse.instance_eval &block if block_given?
       mouse
     end
     
     def mouse_class_mock(&block)
-      klass = Class.new(MouseCell)
+      klass = Class.new(MouseWidget)
       klass.instance_eval &block if block_given?
       klass
     end
     
     def mum_and_kid!
-      @mum = mouse_mock('mum', :answer_squeak)
-        @mum << @kid = mouse_mock('kid', :peek)
+      @mum = mouse_mock('mum')
+        @mum << @kid = mouse_mock('kid')
       
       @mum.respond_to_event :squeak, :with => :answer_squeak
       @mum.respond_to_event :squeak, :from => 'kid', :with => :alert
@@ -43,25 +43,10 @@ module Apotomo
       @controller = Class.new(ActionController::Base) do
         def self.default_url_options; {:controller => :barn}; end
       end.new
-      @controller.class.instance_eval { include Apotomo::Rails::ControllerMethods }
       @controller.extend ActionController::UrlWriter
       @controller.params  = {}
-      ### FIXME: @controller.session = {}
     end
     
-    def hibernate_widget(widget, session = {})
-      Apotomo::StatefulWidget.freeze_for(session, widget)
-      
-      session = Marshal.load(Marshal.dump(session))
-      
-      Apotomo::StatefulWidget.thaw_for(@controller, session, 'root')
-    end
-    
-    def hibernate(widget, session = {})
-      Apotomo::StatefulWidget.freeze_for(session, widget)
-      session = Marshal.load(Marshal.dump(session))
-      Apotomo::StatefulWidget.thaw_for(session, widget('apotomo/widget', 'root'))
-    end
     
     module TestController
       def setup
@@ -71,23 +56,26 @@ module Apotomo
       # Creates a mock controller instance. Currently, each widget needs a parent controller instance due to some
       # sucky dependency in cells.
       def barn_controller!
-        @controller = Class.new(ActionController::Base) do
-          def initialize
-            extend ActionController::UrlWriter
-            self.params = {}
+        @controller = Class.new(ApotomoController) do
+          def initialize(*)
+            super
             self.request = ActionController::TestRequest.new
           end
           
           def self.name; "BarnController"; end
           
           def self.default_url_options; {:controller => :barn}; end
-          include Apotomo::Rails::ControllerMethods
         end.new
-        ### FIXME: @controller.session = {}
       end
       
       def parent_controller
         @controller
+      end
+      
+      def namespaced_controller
+        controller = Farm::BarnController.new
+        controller.request = ActionController::TestRequest.new
+        controller
       end
       
     end

@@ -39,25 +39,61 @@ class EventMethodsTest < Test::Unit::TestCase
       assert_equal ['answer squeak', 'answer squeak'], @mum.list
     end
     
+    should "also accept an event argument only" do
+      @mum.respond_to_event :answer_squeak
+      @mum.fire :answer_squeak
+      assert_equal ['answer squeak'], @mum.list
+    end 
+    
+    should "make pass the event into the triggered state" do
+      @mum.instance_eval do
+        respond_to_event :footsteps
+          
+        def footsteps(evt)
+          list << evt
+        end
+      end
+      
+      @mum.trigger :footsteps, "near"
+      assert_kind_of Apotomo::Event, @mum.list.last
+    end
+    
+    should "accept payload data for the event" do
+      @mum.respond_to_event :answer_squeak
+      @mum.instance_eval do
+        def answer_squeak(evt)
+          list << evt.data
+        end
+      end
+      
+      @mum.fire :answer_squeak, :volume => 9
+      assert_equal [{:volume => 9}], @mum.list
+    end
+    
     context "#responds_to_event in class context" do
       setup do
-        class AdultMouseCell < MouseCell
+        class AdultMouse < MouseWidget
           responds_to_event :peep, :with => :answer_squeak
         end
-        class BabyMouseCell < AdultMouseCell
+        class BabyMouse < AdultMouse
           responds_to_event :footsteps, :with => :squeak
         end
       end
       
       should "add the handlers at creation time" do
-        assert_equal [Apotomo::InvokeEventHandler.new(:widget_id => 'mum', :state => :answer_squeak)], AdultMouseCell.new(parent_controller, 'mum', :show).event_table.all_handlers_for(:peep, 'mum')
+        assert_equal [Apotomo::InvokeEventHandler.new(:widget_id => 'mum', :state => :answer_squeak)], AdultMouse.new(parent_controller, 'mum', :show).event_table.all_handlers_for(:peep, 'mum')
       end
       
       should "not inherit handlers for now" do
-        assert_equal [], BabyMouseCell.new(parent_controller, 'kid', :show).event_table.all_handlers_for(:peep, 'kid')
+        assert_equal [], BabyMouse.new(parent_controller, 'kid', :show).event_table.all_handlers_for(:peep, 'kid')
+      end
+      
+      should "not add the same handler to each instance" do
+        assert_equal [Apotomo::InvokeEventHandler.new(:widget_id => 'mum', :state => :answer_squeak)], AdultMouse.new(parent_controller, 'mum', :show).event_table.all_handlers_for(:peep, 'mum')
+        
+        assert_equal [Apotomo::InvokeEventHandler.new(:widget_id => 'dad', :state => :answer_squeak)], AdultMouse.new(parent_controller, 'dad', :show).event_table.all_handlers_for(:peep, 'dad')
       end
     end
-    
     
     context "#trigger" do
       should "be an alias for #fire" do
@@ -77,7 +113,6 @@ class EventMethodsTest < Test::Unit::TestCase
         @mum.fire :footsteps
         assert_equal ["escape"], @mum.page_updates
       end
-      
     end
     
   end 

@@ -18,7 +18,7 @@ class TestCaseTest < Test::Unit::TestCase
       setup do
         @klass = MouseWidgetTest
         @test = @klass.new(:widget).tap{ |t| t.setup }
-        @klass.has_widgets { |r| r << widget("mouse_cell", 'mum', :eating) }
+        @klass.has_widgets { |r| r << widget(:mouse, 'mum', :eating) }
       end
       
       should "respond to #root" do  
@@ -40,12 +40,12 @@ class TestCaseTest < Test::Unit::TestCase
       end
       
       should "respond to #render_widget" do
-        assert_equal "<div id=\"mum\">burp!</div>", @test.render_widget('mum')
-        assert_equal "<div id=\"mum\">burp!</div>", @test.last_invoke
+        assert_equal "<div id=\"mum\">burp!</div>\n", @test.render_widget('mum', :eat)
+        assert_equal "<div id=\"mum\">burp!</div>\n", @test.last_invoke
       end
       
       should "respond to #assert_select" do
-        @test.render_widget('mum')
+        @test.render_widget('mum', :eat)
         
         assert_nothing_raised { @test.assert_select("div#mum", "burp!") } 
         
@@ -68,8 +68,14 @@ class TestCaseTest < Test::Unit::TestCase
         
         should "provide options from #trigger to the widget" do
           @test.trigger(:footsteps, :source => 'mum', :direction => :kitchen)
-          assert_equal :kitchen, @mum.param(:direction)
+          assert_equal :kitchen, @mum.options[:direction]
         end
+        
+        #should "merge options from #trigger and constructor" do
+        #  @test.root << @test.widget("mouse_cell", 'kid', :location => :hallway)
+        #  @test.trigger(:footsteps, :source => 'kid', :direction => :kitchen)
+        #  assert_equal({:direction => :kitchen, :location => :hallway}, @mum.param(:direction))
+        #end
         
         should "respond to #assert_response" do
           @test.trigger(:footsteps, :source => 'mum')
@@ -87,8 +93,8 @@ class TestCaseTest < Test::Unit::TestCase
         assert_kind_of ActionController::Base, @test.parent_controller
       end
       
-      should "respond to #controller_name" do
-        assert_equal "barn", @test.parent_controller.controller_name
+      should "respond to #controller_path" do
+        assert_equal "barn", @test.parent_controller.controller_path
       end
     end
   end

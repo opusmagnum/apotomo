@@ -42,7 +42,7 @@ module Apotomo
     def setup
       super
       @controller.instance_eval do 
-        def controller_name
+        def controller_path
          'barn'
         end
       end
@@ -53,7 +53,7 @@ module Apotomo
     # Returns the widget tree from TestCase.has_widgets.
     def root
       blk = self.class.has_widgets_blocks or raise "Please setup a widget tree using TestCase.has_widgets"
-      @root ||= widget("apotomo/widget", "root").tap do |root|
+      @root ||= Apotomo::Widget.new(parent_controller, "root").tap do |root|
          self.instance_exec(root, &blk)
       end
     end
@@ -63,8 +63,8 @@ module Apotomo
     end
     
     # Renders the widget +name+.
-    def render_widget(name, options={})
-      @last_invoke = root.find_widget(name).tap { |w| w.opts = options }.invoke # DISCUSS: use ControllerMethods?
+    def render_widget(*args)
+      @last_invoke = root.render_widget(*args)
     end
     
     # Triggers an event of +type+. You have to pass <tt>:source</tt> as options.
@@ -74,7 +74,7 @@ module Apotomo
     #   trigger :submit, :source => "post-comments"
     def trigger(type, options)
       source = root.find_widget(options.delete(:source))
-      source.instance_variable_set :@params, options  # TODO: this is just a try-out (what about children?). 
+      source.options.merge!(options)  # TODO: this is just a try-out (what about children?). 
       source.fire(type)
       root.page_updates # DISCUSS: use ControllerMethods?
     end

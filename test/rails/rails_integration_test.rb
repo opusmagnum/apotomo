@@ -1,90 +1,55 @@
 require 'test_helper'
 
 class RailsIntegrationTest < ActionController::TestCase
-  def simulate_request!
-    @controller.instance_eval { @apotomo_request_processor = nil }
-    
-    ### FIXME: @controller.session = Marshal.load(Marshal.dump(@controller.session))
-  end
-  
   include Apotomo::TestCaseMethods::TestController
   
-  context "A Rails controller" do
+  def simulate_request!
+    @controller.instance_eval { @apotomo_request_processor = nil }
+  end
+  
+  context "ActionController" do
     setup do
-      @mum = MouseCell.new(parent_controller, 'mum', :snuggle)
-      @mum.class.class_eval do
-        responds_to_event :squeak, :with => :snuggle
-        
-        def snuggle; render; end
+      @mum = mum = MouseWidget.new(parent_controller, 'mum', :eating)
+      @mum.instance_eval do
+        def eating; render; end
       end
       
-      @controller.instance_variable_set(:@mum, @mum)
+      @mum.respond_to_event :squeak
+      
+      @controller.class.has_widgets do |root|
+        root << mum
+      end
+      
       @controller.instance_eval do
         def widget
-          use_widgets do |root|
-            root << @mum
-          end
-          
-          render :text => render_widget('mum')
+          render :text => render_widget('mum', :eat)
         end
       end
     end
     
-    should "freeze the widget tree once after each request" do
-      assert_equal 0, @controller.session.size
-      
-      get 'widget'
-      assert_equal 1, @controller.session[:apotomo_stateful_branches].size
-    end
-    
-    should "invoke a #use_widgets block only once per session" do
-      #assert_equal 1, @controller.apotomo_root.size
-      
-      get 'widget'
-      assert_response :success
-      assert_equal 1, @controller.session[:apotomo_stateful_branches].size
-      
-      simulate_request!
-      
-      get 'widget'
-      assert_equal 1, @controller.session[:apotomo_stateful_branches].size
-      assert_response :success
-      
-      simulate_request!
-      
-      get 'widget'
-      assert_response :success
-      assert_equal 2, @controller.apotomo_root.size, "mum added multiple times"
-    end
-    
     should "provide the rails view helpers in state views" do
       @mum.instance_eval do
-        def snuggle; render :view => :make_me_squeak; end
+        def eat; render :view => :make_me_squeak; end
       end
       
       get 'widget'
       assert_select "a", "mum"
     end
     
-    should "contain a freshly flushed tree when ?flush_widgets=1 is set" do
-      get 'widget'
-      assert_response :success
-      assert @controller.apotomo_request_processor.widgets_flushed?
+    should "pass the event with all params data as state-args" do
+      @mum.instance_eval do
+        def squeak(evt); render :text => evt.data; end
+      end
       
-      simulate_request!
-      
-      get 'widget'
-      assert_response :success
-      assert_not @controller.apotomo_request_processor.widgets_flushed?
-      
-      simulate_request!
-      
-      get 'widget', :flush_widgets => 1
-      assert_response :success  # will fail if no #use_widgets block invoked
-      assert @controller.apotomo_request_processor.widgets_flushed?
+      get 'render_event_response', :source => 'mum', :type => :squeak, :pitch => :high
+      assert_equal "{\"source\"=>\"mum\", \"type\"=>:squeak, \"pitch\"=>:high, \"controller\"=>\"barn\", \"action\"=>\"render_event_response\"}", @response.body
     end
     
     should "render updates to the parent window for an iframe request" do
+      @mum.instance_eval do
+        def squeak(evt); render :text => "<b>SQUEAK!</b>"; end
+      end
+      
       get 'widget'
       assert_response :success
       
@@ -94,7 +59,58 @@ class RailsIntegrationTest < ActionController::TestCase
       
       assert_response :success
       assert_equal 'text/html', @response.content_type
-      assert_equal "<html><body><script type='text/javascript' charset='utf-8'>\nvar loc = document.location;\nwith(window.parent) { setTimeout(function() { window.eval('<div id=\\\"mum\\\"><snuggle><\\/snuggle><\\/div>\\n'); window.loc && loc.replace('about:blank'); }, 1) }\n</script></body></html>", @response.body
+      assert_equal "<html><body><script type='text/javascript' charset='utf-8'>\nvar loc = document.location;\nwith(window.parent) { setTimeout(function() { window.eval('<b>SQUEAK!<\\/b>'); window.loc && loc.replace('about:blank'); }, 1) }\n</script></body></html>", @response.body
+    end
+    
+    
+    context "ActionView" do  
+      setup do
+        @controller.instance_eval do
+          def widget
+            render :inline => "<%= render_widget 'mum', :eat %>"
+          end
+        end
+      end
+      
+      should "respond to #render_widget" do
+        get :widget
+        assert_select "#mum", "burp!"
+      end
+      
+      should "respond to #url_for_event" do
+        @controller.instance_eval do
+          def widget
+            render :inline => "<%= url_for_event :footsteps, :source => 'mum' %>"
+          end
+        end
+        
+        get :widget
+        assert_equal "/barn/render_event_response?source=mum&amp;type=footsteps", @response.body
+      end
+    end
+  end
+end
+
+
+class IncludingApotomoSupportTest < ActiveSupport::TestCase
+  context "A controller not including ControllerMethods explicitely" do
+    setup do
+      @class      = Class.new(ActionController::Base)
+      @controller = @class.new
+      @controller.request = ActionController::TestRequest.new
+    end
+    
+    should "respond to .has_widgets only" do
+      assert_respond_to @class, :has_widgets
+      assert_not_respond_to @class, :apotomo_request_processor
+    end
+    
+    should "mixin all methods after first use of .has_widgets" do
+      @class.has_widgets do |root|
+      end
+      
+      assert_respond_to @class, :has_widgets
+      assert_respond_to @controller, :apotomo_request_processor
     end
   end
 end

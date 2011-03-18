@@ -3,13 +3,13 @@ require 'test_helper'
 class RenderTest < ActionView::TestCase
   include Apotomo::TestCaseMethods::TestController
   
-  context "Rendering a single widget" do
+  context "#render" do
     setup do
-      @mum = mouse_mock
+      @mum = mouse_mock('mum', :eating)
     end
     
     should "per default display the state content framed in a div" do
-      assert_equal '<div id="mouse">burp!</div>', @mum.invoke(:eating)
+      assert_equal '<div id="mum">burp!</div>', @mum.invoke(:eating)
     end
     
     context "with :text" do
@@ -18,31 +18,16 @@ class RenderTest < ActionView::TestCase
       end
       
       should "render the :text" do
-        assert_equal "burp!!!", @mum.invoke
+        assert_equal "burp!!!", @mum.invoke(:eating)
       end
     end
     
-    
-    context "with :suppress_js" do
-      setup do
-        @mum.instance_eval do
-          def snuggle; render; end
-          self.class.send :attr_reader, :suppress_js
-        end
-      end
+    should "accept :state and options" do
+      @mum.instance_eval { def eat(what); render :text => "#{what} today?"; end }
       
-      should "per default be false" do
-        @mum.invoke :snuggle
-        assert !@mum.suppress_js
-      end
-      
-      should "be true when set" do
-        @mum.instance_eval do
-          def snuggle; render :suppress_js => true; end
-        end
-        @mum.invoke :snuggle
-        assert @mum.suppress_js
-      end
+      assert_equal "Rice today?", @mum.render({:state => :eat}, "Rice")
+      assert_match "Rice today?", @mum.update({:state => :eat}, "Rice")
+      assert_match "Rice today?", @mum.replace({:state => :eat}, "Rice")
     end
     
     should "expose its instance variables in the rendered view" do
@@ -57,21 +42,6 @@ class RenderTest < ActionView::TestCase
     end
     
     context "with #emit" do
-      setup do
-        @kid = mouse_mock('kid', :squeak)
-        @kid.instance_eval do
-          def squeak
-            render :text => "squeeeeaaak"
-          end
-          
-          def render(*)
-            @rendered = true
-            super
-          end
-          def rendered?; @rendered; end
-        end
-      end
-      
       context "and :text" do
         setup do
           @mum.instance_eval do
@@ -83,25 +53,6 @@ class RenderTest < ActionView::TestCase
         
         should "just return the plain :text" do
           assert_equal 'squeak();', @mum.invoke(:squeak)
-        end
-        
-        should "not render children" do
-          @mum << @kid
-          @mum.invoke(:squeak)
-          
-          assert_not @kid.rendered?
-        end
-        
-        should "allow rendering children" do
-          @mum.instance_eval do
-            def squeak
-              emit :text => "squeak();", :render_children => true
-            end
-          end
-          @mum << @kid
-          @mum.invoke(:squeak)
-          
-          assert @kid.rendered?
         end
       end
       
@@ -115,13 +66,7 @@ class RenderTest < ActionView::TestCase
         end
         
         should "render the view" do
-          assert_equal "<div id=\"mouse\">burp!</div>",  @mum.invoke(:eating)
-        end
-        
-        should "render the children, too" do
-          @mum << @kid
-          @mum.invoke(:eating)
-          assert @kid.rendered?
+          assert_equal "<div id=\"mum\">burp!</div>",  @mum.invoke(:eating)
         end
       end
       
@@ -129,95 +74,61 @@ class RenderTest < ActionView::TestCase
         setup do
           @mum.instance_eval do
             def squeak
-              emit :view => :snuggle
+              emit :view => :eating
             end
           end
         end
         
         should "render the :view" do
-          assert_equal "<div id=\"mouse\"><snuggle></snuggle></div>\n", @mum.invoke(:squeak)
-        end
-        
-        should "render the children" do
-          @mum << @kid
-          
-          assert_equal "<div id=\"mouse\"><snuggle>squeeeeaaak</snuggle></div>\n", @mum.invoke(:squeak)
-          assert @kid.rendered?
+          assert_equal "<div id=\"mum\">burp!</div>", @mum.invoke(:squeak)
         end
       end
     end
     
-    context "with #update" do
-      setup do
-        Apotomo.js_framework = :prototype
-      end
-      
+    context "#update" do
       should "wrap the :text in an update statement" do
         @mum.instance_eval do
           def squeak
             update :text => "squeak!"
           end
         end
-        assert_equal "$(\"mouse\").update(\"squeak!\")", @mum.invoke(:squeak)
+        assert_equal "$(\"#mum\").html(\"squeak!\");", @mum.invoke(:squeak)
       end
       
-      should "accept :selector" do
+      should "accept a selector" do
         @mum.instance_eval do
           def squeak
-            update :text => '<div id="mum">squeak!</div>', :selector => "div#mouse"
+            update "div#mouse", :text => '<div id="mum">squeak!</div>'
           end
         end
-        assert_equal "$(\"div#mouse\").update(\"<div id=\\\"mum\\\">squeak!<\\/div>\")", @mum.invoke(:squeak)
+        assert_equal "$(\"div#mouse\").html(\"<div id=\\\"mum\\\">squeak!<\\/div>\");", @mum.invoke(:squeak)
       end
     end
     
-    context "with #replace" do
-      setup do
-        Apotomo.js_framework = :prototype
-      end
-      
+    context "#replace" do
       should "wrap the :text in a replace statement" do
         @mum.instance_eval do
           def squeak
             replace :text => '<div id="mum">squeak!</div>'
           end
         end
-        assert_equal "$(\"mouse\").replace(\"<div id=\\\"mum\\\">squeak!<\\/div>\")", @mum.invoke(:squeak)
+        assert_equal "$(\"#mum\").replaceWith(\"<div id=\\\"mum\\\">squeak!<\\/div>\");", @mum.invoke(:squeak)
       end
       
-      should "accept :selector" do
+      should "accept a selector" do
         @mum.instance_eval do
           def squeak
-            replace :text => '<div id="mum">squeak!</div>', :selector => "div#mouse"
+            replace "div#mouse", :text => '<div id="mum">squeak!</div>'
           end
         end
-        assert_equal "$(\"div#mouse\").replace(\"<div id=\\\"mum\\\">squeak!<\\/div>\")", @mum.invoke(:squeak)
+        assert_equal "$(\"div#mouse\").replaceWith(\"<div id=\\\"mum\\\">squeak!<\\/div>\");", @mum.invoke(:squeak)
       end
-    end
-  end
-  
-  context "rendering a widget family" do
-    setup do
-      @mum = mouse_mock('mum', :snuggle) do
-        def snuggle; render; end
-      end
-      
-      @mum << @kid = mouse_mock('kid')
     end
     
-    should "per default render kid's content inside mums div with rendered_children" do
-      assert_equal "<div id=\"mum\"><snuggle><div id=\"kid\">burp!</div></snuggle></div>\n", @mum.invoke(:snuggle)
-    end
-    
-    should "skip kids if :render_children=>false but still provide a rendered_children hash" do
-      @mum.instance_eval do
-        def snuggle; render :render_children => false; end
+    context "#escape_js" do
+      should "escape the string" do
+        assert_equal "<div id=\\\"mum\\\">squeak!<\\/div>", @mum.escape_js('<div id="mum">squeak!</div>')
       end
-      
-      assert_equal "<div id=\"mum\"><snuggle></snuggle></div>\n", @mum.invoke(:snuggle)
     end
-     
-    should_eventually "provide an ordered rendered_children hash"
-  end
-  
+  end  
 end
