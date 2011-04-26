@@ -1,12 +1,10 @@
 require 'test_helper'
  
 class EventTest < Test::Unit::TestCase
+  include Apotomo::TestCaseMethods::TestController
+  
   context "An Event" do
-    should "require type and respond to #type" do
-      assert_equal :footsteps, Apotomo::Event.new(:footsteps).type
-    end
-    
-    should "require source and respond to #source" do
+    should "respond to #type and #source" do
       @event = Apotomo::Event.new(:footsteps, 'mum')
       assert_equal :footsteps,  @event.type
       assert_equal 'mum',       @event.source
@@ -22,14 +20,9 @@ class EventTest < Test::Unit::TestCase
       assert_equal :loud, @event[:volume]
     end
     
-    should "complain when serialized" do
-      assert_raises RuntimeError do
-        Marshal.dump(Apotomo::Event.new(:footsteps, 'mum'))
-      end
-    end
-    
-    should "respond to #stopped?" do
-      assert_not Apotomo::Event.new(:footsteps, 'mum').stopped?
+    should "respond to #to_s" do
+      @event = Apotomo::Event.new(:footsteps, mouse_mock('mum'))
+      assert_equal "<Event :footsteps source=mum>", @event.to_s
     end
   end
 end

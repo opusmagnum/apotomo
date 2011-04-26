@@ -1,7 +1,7 @@
-require 'generators/haml/cell_generator'
+require 'generators/slim/cell_generator'
 require 'generators/apotomo/widget_generator'
 
-module Haml
+module Slim
   module Generators
     class WidgetGenerator < CellGenerator
       include ::Apotomo::Generators::BasePathMethods

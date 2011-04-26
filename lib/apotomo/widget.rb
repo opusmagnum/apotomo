@@ -2,13 +2,14 @@ require 'cells'
 require 'onfire'
 require 'hooks'
 
-require 'apotomo/tree_node'
+
 require 'apotomo/event'
-require 'apotomo/event_methods'
 require 'apotomo/widget_shortcuts'
 require 'apotomo/rails/view_helper'
 require 'apotomo/rails/controller_methods'  # FIXME.
 
+require 'apotomo/widget/tree_node'
+require 'apotomo/widget/event_methods'
 require 'apotomo/widget/javascript_methods'
 
 
@@ -108,22 +109,21 @@ module Apotomo
       render_state(state)
     end
     
-    # Render the view for the current state. Usually called at the end of a state method.
+    # Renders and returns a view for the current state. That's why it is usually called at the end of 
+    # a state method.
     #
     # ==== Options
-    # * <tt>:view</tt> - Specifies the name of the view file to render. Defaults to the current state name.
-    # * <tt>:template_format</tt> - Allows using a format different to <tt>:html</tt>.
-    # * <tt>:layout</tt> - If set to a valid filename inside your cell's view_paths, the current state view will be rendered inside the layout (as known from controller actions). Layouts should reside in <tt>app/cells/layouts</tt>.
-    # * see Cell::Base#render for additional options
+    # * <tt>:view</tt> - Renders +view+. Defaults to the current state name.
+    # * <tt>:state</tt> - Invokes the +state+ method and returns whatever the state returns.
+    # * See http://rdoc.info/gems/cells/3.5.4/Cell/Rails#render-instance_method
     #
     # Example:
-    #  class MouseWidget < Apotomo::StatefulWidget
+    #  class MouseWidget < Apotomo::Widget
     #    def eat
-    #      # ... do something
     #      render 
     #    end
     #
-    # will just render the view <tt>eat.haml</tt>.
+    # render the view <tt>eat.haml</tt>.
     #
     #  render :js => "alert('SQUEAK!');"
     #
@@ -141,7 +141,7 @@ module Apotomo
     end
     
     
-    # Returns the widget named <tt>widget_id</tt> as long as it is below self or self itself.
+    # Returns the widget named +widget_id+ if it's a descendent or self.
     def find_widget(widget_id)
       find {|node| node.name.to_s == widget_id.to_s}
     end
